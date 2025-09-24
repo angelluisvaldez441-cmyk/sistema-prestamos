@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Sistema de Préstamos</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #e9edf0;
+      margin: 0;
+      padding: 20px;
+      color: #333;
+    }
+    h1 {
+      text-align: center;
+      color: #2c3e50;
+    }
+    .section {
+      background: #fff;
+      padding: 20px;
+      margin: 20px auto;
+      border-radius: 12px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      max-width: 800px;
+    }
+    h2 {
+      color: #34495e;
+      margin-bottom: 10px;
+    }
+    input, select {
+      width: 100%;
+      padding: 10px;
+      margin: 6px 0;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      box-sizing: border-box;
+    }
+    button {
+      background-color: #3498db;
+      color: white;
+      border: none;
+      padding: 10px 16px;
+      margin-top: 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+    button:hover {
+      background-color: #2980b9;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+    }
+    th, td {
+      padding: 10px;
+      border-bottom: 1px solid #ddd;
+      text-align: left;
+    }
+    th {
+      background-color: #f7f9fa;
+    }
+    .highlight {
+      font-weight: bold;
+      color: #27ae60;
+    }
+    .cronograma {
+      background-color: #f8f9fa;
+      padding: 15px;
+      border-radius: 6px;
+      margin-top: 10px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .cronograma-item {
+      padding: 5px;
+      border-bottom: 1px solid #e9ecef;
+    }
+    .error {
+      color: #e74c3c;
+      font-weight: bold;
+    }
+    .label {
+      font-weight: bold;
+      margin-top: 10px;
+      display: block;
+    }
+    .info-text {
+      color: #666;
+      font-size: 14px;
+      margin-top: 5px;
+    }
+    .checkbox-container {
+      display: flex;
+      align-items: center;
+      margin: 10px 0;
+    }
+    .checkbox-container input {
+      width: auto;
+      margin-right: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Sistema de Préstamos</h1>
+
+  <div class="section">
+    <h2>1. Registrar Cliente</h2>
+    <input type="text" id="nombre" placeholder="Nombre completo">
+    <input type="text" id="telefono" placeholder="Teléfono">
+    <button id="btnGuardarCliente">Guardar Cliente</button>
+    <table id="tablaClientes">
+      <thead><tr><th>Nombre</th><th>Teléfono</th><th>Acciones</th></tr></thead>
+      <tbody id="tbodyClientes"></tbody>
+    </table>
+  </div>
+
+  <div class="section">
+    <h2>2. Calculadora de Préstamos</h2>
+    <select id="clientePrestamo">
+      <option value="">Seleccione un cliente</option>
+    </select>
+    <input type="number" id="montoPrestamo" placeholder="Monto del préstamo" min="1">
+    <input type="number" id="interesPrestamo" placeholder="Interés (%)" min="0" step="0.1">
+    
+    <div class="checkbox-container">
+      <input type="checkbox" id="usarPlazo" onchange="togglePlazo()">
+      <label for="usarPlazo">Calcular con plazo específico</label>
+    </div>
+    
+    <div id="plazoContainer" style="display: none;">
+      <input type="number" id="plazoPrestamo" placeholder="Plazo (meses)" min="1" max="120">
+      <p class="info-text">Si usas plazo, se calculará la cuota mensual. Si no, solo el interés total.</p>
+    </div>
+
+    <label class="label">Fecha del Préstamo:</label>
+    <input type="date" id="fechaPrestamo">
+    
+    <button id="btnCalcularPrestamo">Calcular</button>
+    <div id="resultadoPrestamo"></div>
+    <button id="btnGuardarPrestamo" style="display: none;">Guardar Préstamo</button>
+  </div>
+
+  <div class="section">
+    <h2>3. Agregar Pago</h2>
+    <select id="selectorPrestamo">
+      <option value="">Seleccione un préstamo</option>
+    </select>
+    <label class="label">Fecha del Pago:</label>
+    <input type="date" id="fechaPago">
+    <input type="number" id="montoPago" placeholder="Monto del pago" min="0.01" step="0.01">
+    <button id="btnAgregarPago">Agregar Pago</button>
+    <table id="tablaPagos">
+      <thead><tr><th>Préstamo ID</th><th>Cliente</th><th>Fecha</th><th>Monto</th><th>Cuota #</th><th>Acciones</th></tr></thead>
+      <tbody id="tbodyPagos"></tbody>
+    </table>
+  </div>
+
+  <div class="section">
+    <h2>4. Préstamos Guardados</h2>
+    <table id="tablaPrestamos">
+      <thead><tr><th>Cliente</th><th>Monto</th><th>Interés</th><th>Plazo</th><th>Cuota Mensual</th><th>Total a Pagar</th><th>Fecha Préstamo</th><th>Saldo Pendiente</th><th>Estado</th><th>Acciones</th></tr></thead>
+      <tbody id="tbodyPrestamos"></tbody>
+    </table>
+  </div>
+
+  <div class="section">
+    <h2>5. Resumen por Cliente</h2>
+    <select id="clienteResumen">
+      <option value="">Seleccione un cliente</option>
+    </select>
+    <div id="resumenCliente"></div>
+  </div>
+
+  <script>
+    let clientes = [];
+    let prestamos = [];
+    let prestamoCalculado = null;
+
+    document.addEventListener("DOMContentLoaded", () => {
+      cargarDatos();
+      inicializarEventos();
+      actualizarTodoElSistema();
+      
+      // Establecer fecha actual por defecto
+      const hoy = new Date().toISOString().split('T')[0];
+      document.getElementById('fechaPago').value = hoy;
+      document.getElementById('fechaPrestamo').value = hoy;
+    });
+
+    function cargarDatos() {
+      try {
+        clientes = JSON.parse(localStorage.getItem("clientes")) || [];
+        prestamos = JSON.parse(localStorage.getItem("prestamos")) || [];
+      } catch (error) {
+        console.error("Error cargando datos:", error);
+        clientes = [];
+        prestamos = [];
+      }
+    }
+
+    function inicializarEventos() {
+      document.getElementById("btnGuardarCliente").addEventListener("click", guardarCliente);
+      document.getElementById("btnCalcularPrestamo").addEventListener("click", calcularPrestamo);
+      document.getElementById("btnGuardarPrestamo").addEventListener("click", guardarPrestamo);
+      document.getElementById("btnAgregarPago").addEventListener("click", agregarPago);
+      document.getElementById("clienteResumen").addEventListener("change", mostrarResumenCliente);
+    }
+
+    function togglePlazo() {
+      const usarPlazo = document.getElementById("usarPlazo").checked;
+      document.getElementById("plazoContainer").style.display = usarPlazo ? "block" : "none";
+    }
+
+    function actualizarTodoElSistema() {
+      actualizarTablaClientes();
+      actualizarSelectoresClientes();
+      actualizarSelectorPrestamos();
+      mostrarPrestamos();
+      mostrarPagos();
+    }
+
+    // --- SECCIÓN 1: CLIENTES ---
+    function guardarCliente() {
+      const nombre = document.getElementById("nombre").value.trim();
+      const telefono = document.getElementById("telefono").value.trim();
+      
+      if (!nombre || !telefono) {
+        alert("Por favor completa ambos campos.");
+        return;
+      }
+
+      if (clientes.some(c => c.nombre.toLowerCase() === nombre.toLowerCase())) {
+        alert("Ya existe un cliente con ese nombre.");
+        return;
+      }
+
+      clientes.push({ id: Date.now(), nombre, telefono });
+      localStorage.setItem("clientes", JSON.stringify(clientes));
+      
+      document.getElementById("nombre").value = "";
+      document.getElementById("telefono").value = "";
+      
+      actualizarTodoElSistema();
+      alert("Cliente guardado correctamente.");
+    }
+
+    function actualizarTablaClientes() {
+      const tbody = document.getElementById("tbodyClientes");
+      tbody.innerHTML = "";
+
+      clientes.forEach((cliente, index) => {
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${cliente.nombre}</td>
+          <td>${cliente.telefono}</td>
+          <td>
+            <button onclick="editarCliente(${index})">Editar</button>
+            <button onclick="eliminarCliente(${index})" style="background-color: #e74c3c;">Eliminar</button>
+          </td>
+        `;
+        tbody.appendChild(row);
+      });
+    }
+
+    function actualizarSelectoresClientes() {
+      const selectores = [
+        document.getElementById("clientePrestamo"),
+        document.getElementById("clienteResumen")
+      ];
+
+      selectores.forEach(selector => {
+        if (selector) {
+          const valorActual = selector.value;
+          selector.innerHTML = '<option value="">Seleccione un cliente</option>';
+          
+          clientes.forEach(cliente => {
+            const option = document.createElement("option");
+            option.value = cliente.id;
+            option.textContent = cliente.nombre;
+            selector.appendChild(option);
+          });
+          
+          if (valorActual && clientes.some(c => c.id == valorActual)) {
+            selector.value = valorActual;
+          }
+        }
+      });
+    }
+    
+    function actualizarSelectorPrestamos() {
+        const selector = document.getElementById("selectorPrestamo");
+        if (selector) {
+            const valorActual = selector.value;
+            selector.innerHTML = '<option value="">Seleccione un préstamo</option>';
+            
+            prestamos.forEach(prestamo => {
+                const cliente = clientes.find(c => c.id === prestamo.clienteId);
+                const nombreCliente = cliente ? cliente.nombre : "Cliente Desconocido";
+                const option = document.createElement("option");
+                option.value = prestamo.id;
+                option.textContent = `${nombreCliente} - RD$${prestamo.monto.toFixed(2)} - Saldo: RD$${prestamo.saldoPendiente.toFixed(2)}`;
+                selector.appendChild(option);
+            });
+            
+            if (valorActual && prestamos.some(p => p.id == valorActual)) {
+                selector.value = valorActual;
+            }
+        }
+    }
+
+    function editarCliente(index) {
+      const cliente = clientes[index];
+      const nuevoNombre = prompt("Nuevo nombre:", cliente.nombre);
+      const nuevoTelefono = prompt("Nuevo teléfono:", cliente.telefono);
+      
+      if (nuevoNombre && nuevoTelefono) {
+        clientes[index] = { ...cliente, nombre: nuevoNombre.trim(), telefono: nuevoTelefono.trim() };
+        localStorage.setItem("clientes", JSON.stringify(clientes));
+        actualizarTodoElSistema();
+        alert("Cliente actualizado correctamente.");
+      }
+    }
+
+    function eliminarCliente(index) {
+      const cliente = clientes[index];
+      
+      if (confirm(`¿Estás seguro de eliminar a ${cliente.nombre}? También se eliminarán todos sus préstamos y pagos.`)) {
+        const clienteId = cliente.id;
+        
+        clientes.splice(index, 1);
+        prestamos = prestamos.filter(p => p.clienteId !== clienteId);
+        
+        localStorage.setItem("clientes", JSON.stringify(clientes));
+        localStorage.setItem("prestamos", JSON.stringify(prestamos));
+        
+        actualizarTodoElSistema();
+        alert("Cliente eliminado correctamente.");
+      }
+    }
+
+    // --- SECCIÓN 2: PRÉSTAMOS ---
+    function calcularPrestamo() {
+      const clienteId = document.getElementById("clientePrestamo").value;
+      const monto = parseFloat(document.getElementById("montoPrestamo").value);
+      const interes = parseFloat(document.getElementById("interesPrestamo").value);
+      const fechaPrestamo = document.getElementById("fechaPrestamo").value;
+      const usarPlazo = document.getElementById("usarPlazo").checked;
+      const plazo = usarPlazo ? parseInt(document.getElementById("plazoPrestamo").value) : null;
+
+      if (!clienteId || !monto || monto <= 0 || interes < 0 || !fechaPrestamo) {
+        alert("Por favor, complete todos los campos con valores válidos.");
+        return;
+      }
+
+      if (usarPlazo && (!plazo || plazo <= 0)) {
+        alert("Por favor, ingrese un plazo válido.");
+        return;
+      }
+
+      // CÁLCULO FLEXIBLE
+      const interesMonto = (monto * interes) / 100;
+      const montoTotal = monto + interesMonto;
+      let cuotaMensual = null;
+
+      if (usarPlazo) {
+        cuotaMensual = montoTotal / plazo;
+      }
+
+      prestamoCalculado = {
+        clienteId: parseInt(clienteId),
+        monto,
+        interes,
+        interesMonto,
+        montoTotal,
+        plazo: usarPlazo ? plazo : null,
+        cuotaMensual: cuotaMensual,
+        usarPlazo: usarPlazo,
+        fechaPrestamo: fechaPrestamo
+      };
+
+      mostrarResultadoPrestamo();
+    }
+
+    function mostrarResultadoPrestamo() {
+      const div = document.getElementById("resultadoPrestamo");
+      const btnGuardar = document.getElementById("btnGuardarPrestamo");
+      
+      if (!prestamoCalculado) return;
+
+      let resultadoHTML = `
+        <div class="highlight">
+          <p><strong>Fecha del préstamo:</strong> ${prestamoCalculado.fechaPrestamo}</p>
+          <p><strong>Capital:</strong> RD$${prestamoCalculado.monto.toFixed(2)}</p>
+          <p><strong>Interés (${prestamoCalculado.interes}%):</strong> RD$${prestamoCalculado.interesMonto.toFixed(2)}</p>
+          <p><strong>Total a pagar:</strong> RD$${prestamoCalculado.montoTotal.toFixed(2)}</p>
+      `;
+
+      if (prestamoCalculado.usarPlazo) {
+        resultadoHTML += `
+          <p><strong>Plazo:</strong> ${prestamoCalculado.plazo} meses</p>
+          <p><strong>Cuota mensual:</strong> RD$${prestamoCalculado.cuotaMensual.toFixed(2)}</p>
+        `;
+      } else {
+        resultadoHTML += `<p><strong>Modalidad:</strong> Pagos flexibles (sin plazo fijo)</p>`;
+      }
+
+      resultadoHTML += `</div>`;
+      div.innerHTML = resultadoHTML;
+      
+      btnGuardar.style.display = "inline-block";
+    }
+
+    function guardarPrestamo() {
+      if (!prestamoCalculado) {
+        alert("Primero debe calcular un préstamo.");
+        return;
+      }
+
+      const prestamo = {
+        id: Date.now(),
+        ...prestamoCalculado,
+        saldoPendiente: prestamoCalculado.montoTotal,
+        pagos: [],
+        estado: "activo",
+        fechaCreacion: new Date().toISOString().split('T')[0]
+      };
+
+      prestamos.push(prestamo);
+      localStorage.setItem("prestamos", JSON.stringify(prestamos));
+
+      // Limpiar formulario
+      document.getElementById("clientePrestamo").value = "";
+      document.getElementById("montoPrestamo").value = "";
+      document.getElementById("interesPrestamo").value = "";
+      document.getElementById("plazoPrestamo").value = "";
+      document.getElementById("fechaPrestamo").value = new Date().toISOString().split('T')[0];
+      document.getElementById("usarPlazo").checked = false;
+      document.getElementById("plazoContainer").style.display = "none";
+      document.getElementById("resultadoPrestamo").innerHTML = "";
+      document.getElementById("btnGuardarPrestamo").style.display = "none";
+      
+      prestamoCalculado = null;
+      
+      actualizarTodoElSistema();
+      alert("Préstamo guardado correctamente.");
+    }
+
+    function mostrarPrestamos() {
+      const tbody = document.getElementById("tbodyPrestamos");
+      tbody.innerHTML = "";
+
+      prestamos.forEach((prestamo, index) => {
+        const cliente = clientes.find(c => c.id === prestamo.clienteId);
+        const nombreCliente = cliente ? cliente.nombre : "Cliente Desconocido";
+        const estado = prestamo.saldoPendiente <= 0 ? "Completado" : "Activo";
+        const row = document.createElement("tr");
+        
+        row.innerHTML = `
+          <td>${nombreCliente}</td>
+          <td>RD$${prestamo.monto.toFixed(2)}</td>
+          <td>${prestamo.interes}%</td>
+          <td>${prestamo.usarPlazo ? prestamo.plazo + ' meses' : 'Flexible'}</td>
+          <td>${prestamo.usarPlazo ? 'RD$' + prestamo.cuotaMensual.toFixed(2) : 'N/A'}</td>
+          <td>RD$${prestamo.montoTotal.toFixed(2)}</td>
+          <td>${prestamo.fechaPrestamo}</td>
+          <td style="color: ${estado === 'Completado' ? 'green' : 'red'}; font-weight: bold;">RD$${prestamo.saldoPendiente.toFixed(2)}</td>
+          <td>${estado}</td>
+          <td>
+            <button onclick="verDetallesPrestamo(${index})">Ver Detalles</button>
+            <button onclick="eliminarPrestamo(${index})" style="background-color: #e74c3c;">Eliminar</button>
+          </td>
+        `;
+        tbody.appendChild(row);
+      });
+    }
+
+    function verDetallesPrestamo(index) {
+        const prestamo = prestamos[index];
+        const cliente = clientes.find(c => c.id === prestamo.clienteId);
+        const nombreCliente = cliente ? cliente.nombre : "Cliente Desconocido";
+
+        let detallesHTML = `
+            <h3>Detalles del Préstamo para ${nombreCliente}</h3>
+            <p><strong>Fecha del préstamo:</strong> ${prestamo.fechaPrestamo}</p>
+            <p><strong>Monto original:</strong> RD$${prestamo.monto.toFixed(2)}</p>
+            <p><strong>Interés (${prestamo.interes}%):</strong> RD$${prestamo.interesMonto.toFixed(2)}</p>
+            <p><strong>Total a pagar:</strong> RD$${prestamo.montoTotal.toFixed(2)}</p>
+            ${prestamo.usarPlazo ? `<p><strong>Plazo:</strong> ${prestamo.plazo} meses</p><p><strong>Cuota mensual:</strong> RD$${prestamo.cuotaMensual.toFixed(2)}</p>` : '<p><strong>Modalidad:</strong> Pagos flexibles</p>'}
+            <p><strong>Saldo pendiente:</strong> RD$${prestamo.saldoPendiente.toFixed(2)}</p>
+            <p><strong>Total pagado:</strong> RD$${(prestamo.montoTotal - prestamo.saldoPendiente).toFixed(2)}</p>
+        `;
+
+        if (prestamo.pagos && prestamo.pagos.length > 0) {
+            detallesHTML += `
+                <h4>Pagos realizados:</h4>
+                <table style="width: 100%;">
+                    <thead>
+                        <tr>
+                            <th># Cuota</th>
+                            <th>Fecha</th>
+                            <th>Monto</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            prestamo.pagos.forEach(pago => {
+                detallesHTML += `
+                    <tr>
+                        <td>${pago.cuota}</td>
+                        <td>${pago.fecha}</td>
+                        <td>RD$${pago.monto.toFixed(2)}</td>
+                    </tr>
+                `;
+            });
+            
+            detallesHTML += `</tbody></table>`;
+        } else {
+            detallesHTML += `<p>No se han realizado pagos aún.</p>`;
+        }
+
+        const popup = window.open('', '', 'width=600,height=500');
+        popup.document.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Detalles del Préstamo</title>
+                <style>
+                    body { font-family: 'Segoe UI', sans-serif; padding: 20px; }
+                    h3 { color: #34495e; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+                    th, td { padding: 8px; border: 1px solid #ddd; text-align: left; }
+                    th { background-color: #f2f2f2; }
+                </style>
+            </head>
+            <body>
+                ${detallesHTML}
+                <button onclick="window.print()" style="margin-top: 20px; padding: 10px; background-color: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer;">Imprimir</button>
+            </body>
+            </html>
+        `);
+    }
+
+    function eliminarPrestamo(index) {
+      if (confirm("¿Estás seguro de eliminar este préstamo?")) {
+        prestamos.splice(index, 1);
+        localStorage.setItem("prestamos", JSON.stringify(prestamos));
+        actualizarTodoElSistema();
+        alert("Préstamo eliminado correctamente.");
+      }
+    }
+
+    // --- SECCIÓN 3: PAGOS ---
+    function agregarPago() {
+      const prestamoId = document.getElementById("selectorPrestamo").value;
+      const fecha = document.getElementById("fechaPago").value;
+      const monto = parseFloat(document.getElementById("montoPago").value);
+
+      if (!prestamoId || !fecha || !monto || monto <= 0) {
+        alert("Por favor, complete todos los campos con valores válidos.");
+        return;
+      }
+      
+      const prestamo = prestamos.find(p => p.id == prestamoId);
+      if (!prestamo) {
+          alert("Préstamo no encontrado.");
+          return;
+      }
+
+      if (monto > prestamo.saldoPendiente) {
+          alert(`El monto del pago (RD$${monto.toFixed(2)}) no puede ser mayor al saldo pendiente (RD$${prestamo.saldoPendiente.toFixed(2)})`);
+          return;
+      }
+
+      // Determinar a qué cuota corresponde este pago
+      let cuotaAsignada = (prestamo.pagos && prestamo.pagos.length > 0) ? 
+          Math.max(...prestamo.pagos.map(p => p.cuota)) + 1 : 1;
+
+      // Descontar del saldo del préstamo
+      prestamo.saldoPendiente -= monto;
+      
+      const pago = {
+          id: Date.now(),
+          prestamoId: prestamo.id,
+          fecha,
+          monto,
+          cuota: cuotaAsignada
+      };
+      
+      if (!prestamo.pagos) {
+        prestamo.pagos = [];
+      }
+      prestamo.pagos.push(pago);
+      
+      // Actualizar estado si el préstamo está pagado completamente
+      if (prestamo.saldoPendiente <= 0) {
+          prestamo.estado = "Completado";
+          prestamo.saldoPendiente = 0;
+      }
+      
+      localStorage.setItem("prestamos", JSON.stringify(prestamos));
+
+      document.getElementById("montoPago").value = "";
+      
+      actualizarTodoElSistema();
+      alert("Pago agregado correctamente.");
+    }
+
+    function mostrarPagos() {
+      const tbody = document.getElementById("tbodyPagos");
+      tbody.innerHTML = "";
+      
+      const todosLosPagos = prestamos.flatMap(p => 
+        (p.pagos || []).map(pago => ({ 
+          ...pago, 
+          clienteId: p.clienteId
+        }))
+      );
+
+      todosLosPagos.forEach((pago) => {
+          const prestamo = prestamos.find(p => p.id === pago.prestamoId);
+          const cliente = clientes.find(c => c.id === prestamo.clienteId);
+          const nombreCliente = cliente ? cliente.nombre : "Cliente Desconocido";
+          const row = document.createElement("tr");
+          row.innerHTML = `
+              <td>${pago.prestamoId}</td>
+              <td>${nombreCliente}</td>
+              <td>${pago.fecha}</td>
+              <td>RD$${pago.monto.toFixed(2)}</td>
+              <td>${pago.cuota}</td>
+              <td>
+                  <button onclick="eliminarPago(${pago.id})" style="background-color: #e74c3c;">Eliminar</button>
+              </td>
+          `;
+          tbody.appendChild(row);
+      });
+    }
+
+    function eliminarPago(pagoId) {
+        if (confirm("¿Estás seguro de eliminar este pago? Se ajustará el saldo del préstamo.")) {
+            let prestamoEncontrado = null;
+            let indicePago = -1;
+            
+            prestamos.forEach(p => {
+                const pagoIndex = (p.pagos || []).findIndex(pa => pa.id === pagoId);
+                if (pagoIndex !== -1) {
+                    prestamoEncontrado = p;
+                    indicePago = pagoIndex;
+                }
+            });
+
+            if (prestamoEncontrado) {
+                const pagoEliminado = prestamoEncontrado.pagos.splice(indicePago, 1)[0];
+                prestamoEncontrado.saldoPendiente += pagoEliminado.monto;
+                
+                // Reasignar números de cuota
+                prestamoEncontrado.pagos.forEach((pago, index) => {
+                    pago.cuota = index + 1;
+                });
+                
+                // Actualizar estado
+                prestamoEncontrado.estado = prestamoEncontrado.saldoPendiente <= 0 ? "Completado" : "Activo";
+                
+                localStorage.setItem("prestamos", JSON.stringify(prestamos));
+                actualizarTodoElSistema();
+                alert("Pago eliminado y saldo ajustado.");
+            }
+        }
+    }
+
+    // --- SECCIÓN 5: RESUMEN ---
+    function mostrarResumenCliente() {
+      const clienteId = document.getElementById("clienteResumen").value;
+      const div = document.getElementById("resumenCliente");
+      
+      if (!clienteId) {
+        div.innerHTML = "";
+        return;
+      }
+
+      const cliente = clientes.find(c => c.id == clienteId);
+      if (!cliente) {
+        div.innerHTML = "";
+        return;
+      }
+
+      const prestamosCliente = prestamos.filter(p => p.clienteId == clienteId);
+      
+      let totalCapitalPrestado = 0;
+      let totalInteresCobrado = 0;
+      let totalPagado = 0;
+      let totalSaldoPendiente = 0;
+
+      prestamosCliente.forEach(p => {
+        totalCapitalPrestado += p.monto;
+        totalInteresCobrado += p.interesMonto;
+        totalSaldoPendiente += p.saldoPendiente;
+        totalPagado += (p.montoTotal - p.saldoPendiente);
+      });
+      
+      div.innerHTML = `
+        <div class="highlight">
+          <h3>Resumen para ${cliente.nombre}</h3>
+          <p><strong>Total de préstamos:</strong> ${prestamosCliente.length}</p>
+          <p><strong>Capital total prestado:</strong> RD$${totalCapitalPrestado.toFixed(2)}</p>
+          <p><strong>Intereses por cobrar:</strong> RD$${totalInteresCobrado.toFixed(2)}</p>
+          <p><strong>Total pagado por el cliente:</strong> RD$${totalPagado.toFixed(2)}</p>
+          <p><strong>Saldo total pendiente:</strong> RD$${totalSaldoPendiente.toFixed(2)}</p>
+        </div>
+      `;
+    }
+  </script>
+</body>
+</html>
